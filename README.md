@@ -36,14 +36,12 @@ Json_input/: Designated landing zone for new application files in JSON format.
 1. ENVIRONMENT: Ensure Python 3.10+ is installed.
 
 2. DEPENDENCIES: Install required libraries via pip:
-Bash
 pip install pandas numpy scikit-learn dowhy watchdog
 
 
 3. PATH SETUP: Open Otomation.py and verify that the WATCH_DIRECTORY and other file paths point to your local project folders.
 
 4. RUNNING THE SYSTEM: Execute the main automation script:
-Bash
 python Otomation.py
 
 5. TESTING: Place a valid application JSON into the Json_input folder. The system will log the analysis in the terminal and update processed_applications.csv.
