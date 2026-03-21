@@ -1,0 +1,14 @@
+{
+    "age": 32,
+    "income": 65000,
+    "employment_years": 4,
+    "debt": 15000,
+    "debt_to_income": 0.23,
+    "credit_score": 710,
+    "credit_history": 8,
+    "loan_amount": 25000,
+    "loan_term": 36,
+    "past_default": 0,
+    "missed_payments": 0,
+    "default": 0
+}
