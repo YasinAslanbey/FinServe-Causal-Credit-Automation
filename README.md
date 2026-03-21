@@ -1,7 +1,3 @@
-Anladım, Markdown başlık seviyelerini (H1, H2, H3) ve font büyüklüğünü belirleyen # işaretlerini tam yerleştirmemi istiyorsun. GitHub bu işaretleri gördüğünde en üsttekini devasa, altındakileri ise kademeli olarak büyük ve kalın fontla gösterir.
-
-İşte en okunaklı haliyle, başlıkların büyüklüğü ayarlanmış tam liste:
-
 # FINSERVE: AUTOMATED CREDIT RISK & CAUSAL INTERVENTION SYSTEM
 ## 1. PROJECT PURPOSE & PROBLEM STATEMENT
 At FinServe, the current credit assessment process is entirely manual, leading to significant bottlenecks, high operational costs, and human error. This Proof-of-Concept (PoC) transitions FinServe from a slow, manual workflow to a robust, AI-driven decision engine.
