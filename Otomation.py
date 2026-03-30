@@ -1,107 +1,66 @@
-import os
-import json
-import time
-import pandas as pd
-import pickle
-import sys
+import os, json, time, pandas as pd, pickle, sys, warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
+
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
 
-WATCH_DIRECTORY = r'C:/Users/yasla/Desktop/Task/Json_input'
-MODEL_FILE = r'C:/Users/yasla/Desktop/Task/Company_Database/credit_model.pkl'
+WATCH_DIR = r'C:/Users/yasla/Desktop/Task/Json_input'
+MODEL_PATH = r'C:/Users/yasla/Desktop/Task/Company_Database/credit_model.pkl'
+LOG_FILE = r'C:/Users/yasla/Desktop/Task/Company_Database/processed_applications.csv'
+sys.path.append(r'C:/Users/yasla/Desktop/Task')
 
-PROCESSED_DATA_FILE = r'C:/Users/yasla/Desktop/Task/Company_Database/processed_applications.csv'
-MODULE_PATH = r'C:/Users/yasla/Desktop/Task'
+from ML_CASUAL import get_causal_advice
 
-sys.path.append(MODULE_PATH)
-
-try:
-    from ML_CASUAL import get_causal_advice
-except ImportError:
-    print("Error: ML_CASUAL.py not found.")
-
-class ApplicationHandler(FileSystemEventHandler):
+class Handler(FileSystemEventHandler):
     def on_created(self, event):
-        if event.is_directory or not event.src_path.endswith('.json'):
-            return
-        
-        print(f"\n[SYSTEM]: Processing: {os.path.basename(event.src_path)}")
+        if not event.src_path.endswith('.json'): return
+        print(f"\n[SYSTEM]: Processing {os.path.basename(event.src_path)}...")
         time.sleep(1)
         
         try:
-
-            with open(MODEL_FILE, 'rb') as f:
+            with open(MODEL_PATH, 'rb') as f:
                 saved = pickle.load(f)
-            
-            rf_model = saved['model']
-            past_df = saved['enriched_df']
+            model, past_df = saved['model'], saved['enriched_df']
             
             with open(event.src_path, 'r') as f:
-                new_app_dict = json.load(f)
+                data = json.load(f)
             
-
-            if "credit_history" in new_app_dict:
-                new_app_dict["credit_history_length_length"] = new_app_dict.pop("credit_history")
-            elif "credit_history_length" in new_app_dict:
-                 new_app_dict["credit_history_length_length"] = new_app_dict.pop("credit_history_length")
-
-            new_app_df = pd.DataFrame([new_app_dict])
-
-         
-            features = ['age', 'income', 'employment_years', 'debt', 'debt_to_income', 
-                        'credit_score', 'credit_history_length_length', 'loan_amount', 
-                        'loan_term', 'past_default', 'missed_payments']
+        
+            if "credit_history" in data:
+                data["credit_history_length"] = data.pop("credit_history")
             
+            df_new = pd.DataFrame([data])
+            cols = ['age', 'income', 'employment_years', 'debt', 'debt_to_income', 
+                    'credit_score', 'credit_history_length', 'loan_amount', 
+                    'loan_term', 'past_default', 'missed_payments']
             
-            new_app_df_filtered = new_app_df[features]
+           
+            risk = model.predict_proba(df_new[cols])[0, 1]
+            status = "Approved" if risk < 0.20 else "Manual Review"
             
-            # 5. Tahmin
-            risk_prob = rf_model.predict_proba(new_app_df_filtered)[0, 1]
-            status = "Approved" if risk_prob < 0.20 else "Manual Review"
-            
-            print(f"Risk: {risk_prob*100:.2f}% | Decision: {status}")
-
- 
-            advice_t, advice_a, imp_t, imp_a = "N/A", "N/A", 0.0, 0.0
-
+            adv_t, adv_a = "N/A", "N/A"
             if status == "Manual Review":
-                advice_t, advice_a, imp_t, imp_a = get_causal_advice(new_app_df, past_df)
-                
-                print("\n" + "="*45)
-                print("🔍 CAUSAL IMPACT ANALYSIS")
-                print("="*45)
-                print(f"Term Reduction Impact  : %{abs(imp_t*100):.2f} lower risk")
-                print(f"Amount Reduction Impact: %{abs(imp_a*100):.2f} lower risk")
-                print(f"\n💡 {advice_t}") 
-                print(f"💡 {advice_a}")
-                print("="*45 + "\n")
+                adv_t, adv_a, _, _ = get_causal_advice(df_new[cols], past_df)
 
-
-
-            new_app_df['default_prob'] = risk_prob
-            new_app_df['causal_strategy_term'] = advice_t
-            new_app_df['causal_strategy_amount'] = advice_a
-            new_app_df['processed_at'] = time.ctime()
-            new_app_df['application_status'] = status
-
-            file_exists = os.path.isfile(PROCESSED_DATA_FILE)
-            new_app_df.to_csv(PROCESSED_DATA_FILE, mode='a', header=not file_exists, index=False, encoding='utf-8-sig')
             
-            print(f"[SUCCESS]: Data saved to processed_applications.csv")
+            df_new['risk_score'], df_new['status'] = risk, status
+            df_new['advice_term'], df_new['advice_amount'] = adv_t, adv_a
+            df_new['time'] = time.ctime()
+            
+            order = cols + ['risk_score', 'status', 'advice_term', 'advice_amount', 'time']
+            df_new[order].to_csv(LOG_FILE, mode='a', header=not os.path.exists(LOG_FILE), index=False, encoding='utf-8-sig')
+            
+            print(f"[SUCCESS]: Risk %{risk*100:.2f} | Status: {status}")
 
-        except Exception as e:
-            print(f"[ERROR]: {e}")
+        except Exception as e: print(f"[ERROR]: {e}")
 
 if __name__ == "__main__":
-    event_handler = ApplicationHandler()
     observer = Observer()
-    observer.schedule(event_handler, WATCH_DIRECTORY, recursive=False)
-    print(f"System Online. Monitoring: {WATCH_DIRECTORY}")
+    observer.schedule(Handler(), WATCH_DIR, recursive=False)
     observer.start()
+    print(f"Monitoring: {WATCH_DIR}")
     try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        observer.stop()
+        while True: time.sleep(1)
+    except KeyboardInterrupt: observer.stop()
     observer.join()
