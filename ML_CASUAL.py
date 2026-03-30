@@ -4,13 +4,10 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.metrics import accuracy_score, roc_auc_score
 
-
 data_file = r'C:/Users/yasla/Desktop/Task/Company_Database/full_credit_dataset.csv'
 model_file = r'C:/Users/yasla/Desktop/Task/Company_Database/credit_model.pkl'
 
-
 df = pd.read_csv(data_file)
-
 
 X = df.drop('default', axis=1)
 y = df['default']
@@ -30,9 +27,15 @@ grid_search.fit(X_train, y_train)
 rf = grid_search.best_estimator_
 
 
+print("\n" + "="*30)
+print("--- Feature Importance (Top Drivers) ---")
+importance = pd.Series(rf.feature_importances_, index=X.columns).sort_values(ascending=False)
+print(importance.head(10))
+print("="*30 + "\n")
+
+
 y_prob = rf.predict_proba(X_test)[:, 1]
 print(f"ROC-AUC Score: {roc_auc_score(y_test, y_prob):.4f}")
-
 
 def get_causal_advice(new_user_data, past_df):
     features = ['age', 'income', 'employment_years', 'debt', 'debt_to_income', 
@@ -41,7 +44,6 @@ def get_causal_advice(new_user_data, past_df):
     
     current_risk = rf.predict_proba(new_user_data[features])[0, 1]
     
-
     best_t_impact = 0
     best_term = new_user_data['loan_term'].values[0]
     
@@ -50,11 +52,10 @@ def get_causal_advice(new_user_data, past_df):
         temp_t['loan_term'] = t
         risk_t = rf.predict_proba(temp_t[features])[0, 1]
         impact = (risk_t - current_risk) * 100
-        if impact < best_t_impact: # Riski en çok düşüreni seç
+        if impact < best_t_impact: 
             best_t_impact = impact
             best_term = t
             
-
     best_a_impact = 0
     best_amt = new_user_data['loan_amount'].values[0]
     
@@ -71,7 +72,6 @@ def get_causal_advice(new_user_data, past_df):
     advice_a = f"Reduce amount to ${best_amt:,.0f} (Risk: {best_a_impact:.2f}%)"
     
     return advice_t, advice_a, best_t_impact, best_a_impact
-
 
 with open(model_file, 'wb') as f:
     pickle.dump({'model': rf, 'enriched_df': df}, f)
