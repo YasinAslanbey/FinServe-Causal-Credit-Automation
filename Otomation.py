@@ -4,7 +4,6 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
-
 WATCH_DIR = r'C:/Users/yasla/Desktop/Task/Json_input'
 MODEL_PATH = r'C:/Users/yasla/Desktop/Task/Company_Database/credit_model.pkl'
 LOG_FILE = r'C:/Users/yasla/Desktop/Task/Company_Database/processed_applications.csv'
@@ -26,7 +25,6 @@ class Handler(FileSystemEventHandler):
             with open(event.src_path, 'r') as f:
                 data = json.load(f)
             
-        
             if "credit_history" in data:
                 data["credit_history_length"] = data.pop("credit_history")
             
@@ -35,14 +33,15 @@ class Handler(FileSystemEventHandler):
                     'credit_score', 'credit_history_length', 'loan_amount', 
                     'loan_term', 'past_default', 'missed_payments']
             
-           
             risk = model.predict_proba(df_new[cols])[0, 1]
             status = "Approved" if risk < 0.20 else "Manual Review"
             
             adv_t, adv_a = "N/A", "N/A"
             if status == "Manual Review":
                 adv_t, adv_a, _, _ = get_causal_advice(df_new[cols], past_df)
-
+                # ANALİZ SONUÇLARINI TERMİNALE YAZDIRAN KISIM:
+                print(f"💡 {adv_t}")
+                print(f"💡 {adv_a}")
             
             df_new['risk_score'], df_new['status'] = risk, status
             df_new['advice_term'], df_new['advice_amount'] = adv_t, adv_a
